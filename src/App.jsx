@@ -1,104 +1,177 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import {
-  DndContext,
-  closestCenter
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  useSortable,
-  arrayMove,
-  verticalListSortingStrategy
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import "./App.css";
 
+/* =========================
+   🍎 SWIPEABLE TASK ITEM
+========================= */
+function TaskItem({ task, onToggle, onDelete }) {
+  return (
+    <div style={{ position: "relative", margin: "6px 0", overflow: "hidden", borderRadius: 12 }}>
+
+      {/* 🔴 iOS-style delete background */}
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: 100,
+          background: "#ff3b30",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "white",
+          fontWeight: 600
+        }}
+      >
+        Delete
+      </div>
+
+      {/* 🧲 Swipe layer */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -120, right: 0 }}
+        onDragEnd={(e, info) => {
+          if (info.offset.x < -80) {
+            onDelete(task.id);
+          }
+        }}
+        whileTap={{ scale: 0.99 }}
+        transition={{ type: "tween", duration: 0.15 }}
+        style={{
+          background: "white",
+          padding: "14px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          borderRadius: 12,
+          position: "relative"
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={task.done}
+          onChange={() => onToggle(task.id)}
+        />
+
+        <span
+          style={{
+            textDecoration: task.done ? "line-through" : "none",
+            color: task.done ? "#8e8e93" : "#000"
+          }}
+        >
+          {task.text}
+        </span>
+      </motion.div>
+    </div>
+  );
+}
+
+/* =========================
+   📱 MAIN APP
+========================= */
 export default function App() {
   const [app, setApp] = useState({
     routines: {},
-    currentRoutine: null
+    current: null
   });
 
-  // LOAD
+  const [input, setInput] = useState("");
+
+  /* 💾 LOAD */
   useEffect(() => {
-    const saved = localStorage.getItem("appData");
-    if (saved) setApp(JSON.parse(saved));
-    else {
-      setApp({
+    const saved = localStorage.getItem("app");
+
+    if (saved) {
+      setApp(JSON.parse(saved));
+    } else {
+      const initial = {
         routines: {
           morning: {
-            name: "Morning Skincare",
-            tasks: [{ id: "1", text: "Cleanser", done: false }]
+            name: "Morning Routine",
+            tasks: [
+              { id: "1", text: "Cleanser", done: false },
+              { id: "2", text: "Moisturiser", done: false }
+            ]
+          },
+          chores: {
+            name: "House Chores",
+            tasks: [
+              { id: "3", text: "Wash dishes", done: false }
+            ]
           }
         },
-        currentRoutine: null
-      });
+        current: null
+      };
+
+      setApp(initial);
     }
   }, []);
 
-  // SAVE
+  /* 💾 SAVE */
   useEffect(() => {
-    localStorage.setItem("appData", JSON.stringify(app));
+    localStorage.setItem("app", JSON.stringify(app));
   }, [app]);
 
-  const createRoutine = () => {
-    const name = prompt("Routine name?");
-    if (!name) return;
+  /* =========================
+     🏠 HOME SCREEN (Apple style)
+  ========================= */
+  if (!app.current) {
+    return (
+      <div>
+        <div className="header">Reminders</div>
 
-    const id = Date.now().toString();
+        <div className="section-title">My Lists</div>
 
-    setApp({
+        <div className="list">
+          {Object.entries(app.routines).map(([id, r]) => (
+            <div
+              key={id}
+              className="card"
+              onClick={() => setApp({ ...app, current: id })}
+            >
+              <div style={{ fontWeight: 600 }}>{r.name}</div>
+              <div style={{ color: "#8e8e93" }}>{r.tasks.length}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================
+     📋 ROUTINE VIEW
+  ========================= */
+  const routine = app.routines[app.current];
+
+  const addTask = () => {
+    if (!input.trim()) return;
+
+    const updated = {
       ...app,
       routines: {
         ...app.routines,
-        [id]: { name, tasks: [] }
-      },
-      currentRoutine: id
-    });
-  };
-
-  const addTask = (text) => {
-    if (!text.trim()) return;
-
-    const routine = app.routines[app.currentRoutine];
-
-    const newTask = {
-      id: Date.now().toString(),
-      text,
-      done: false
+        [app.current]: {
+          ...routine,
+          tasks: [
+            ...routine.tasks,
+            {
+              id: Date.now().toString(),
+              text: input,
+              done: false
+            }
+          ]
+        }
+      }
     };
 
-    setApp({
-      ...app,
-      routines: {
-        ...app.routines,
-        [app.currentRoutine]: {
-          ...routine,
-          tasks: [...routine.tasks, newTask]
-        }
-      }
-    });
-  };
-
-  const deleteTask = (id) => {
-    const routine = app.routines[app.currentRoutine];
-
-    setApp({
-      ...app,
-      routines: {
-        ...app.routines,
-        [app.currentRoutine]: {
-          ...routine,
-          tasks: routine.tasks.filter(t => t.id !== id)
-        }
-      }
-    });
+    setApp(updated);
+    setInput("");
   };
 
   const toggleTask = (id) => {
-    const routine = app.routines[app.currentRoutine];
-
-    const tasks = routine.tasks.map(t =>
+    const updatedTasks = routine.tasks.map(t =>
       t.id === id ? { ...t, done: !t.done } : t
     );
 
@@ -106,131 +179,59 @@ export default function App() {
       ...app,
       routines: {
         ...app.routines,
-        [app.currentRoutine]: { ...routine, tasks }
+        [app.current]: {
+          ...routine,
+          tasks: updatedTasks
+        }
       }
     });
   };
 
-  // DRAG END
-  function handleDragEnd(event) {
-    const { active, over } = event;
-    if (active.id !== over.id) {
-      const routine = app.routines[app.currentRoutine];
-      const oldIndex = routine.tasks.findIndex(t => t.id === active.id);
-      const newIndex = routine.tasks.findIndex(t => t.id === over.id);
+  const deleteTask = (id) => {
+    const filtered = routine.tasks.filter(t => t.id !== id);
 
-      const newTasks = arrayMove(routine.tasks, oldIndex, newIndex);
-
-      setApp({
-        ...app,
-        routines: {
-          ...app.routines,
-          [app.currentRoutine]: {
-            ...routine,
-            tasks: newTasks
-          }
+    setApp({
+      ...app,
+      routines: {
+        ...app.routines,
+        [app.current]: {
+          ...routine,
+          tasks: filtered
         }
-      });
-    }
-  }
-
-  // HOME
-  if (!app.currentRoutine) {
-    return (
-      <div className="container">
-        <h2>Routines</h2>
-
-        {Object.entries(app.routines).map(([id, r]) => (
-          <div
-            key={id}
-            className="card"
-            onClick={() =>
-              setApp({ ...app, currentRoutine: id })
-            }
-          >
-            <span>📝 {r.name}</span>
-            <span>{r.tasks.length}</span>
-          </div>
-        ))}
-
-        <button onClick={createRoutine}>+ New Routine</button>
-      </div>
-    );
-  }
-
-  const routine = app.routines[app.currentRoutine];
-
-  return (
-    <div className="container">
-      <h2 onClick={() => setApp({ ...app, currentRoutine: null })}>
-        ← {routine.name}
-      </h2>
-
-      <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext
-          items={routine.tasks.map(t => t.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {routine.tasks.map(task => (
-            <SortableItem
-              key={task.id}
-              task={task}
-              toggleTask={toggleTask}
-              deleteTask={deleteTask}
-            />
-          ))}
-        </SortableContext>
-      </DndContext>
-
-      <input
-        placeholder="New task"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            addTask(e.target.value);
-            e.target.value = "";
-          }
-        }}
-      />
-    </div>
-  );
-}
-
-// SORTABLE ITEM
-function SortableItem({ task, toggleTask, deleteTask }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition
-  } = useSortable({ id: task.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition
+      }
+    });
   };
 
   return (
-    <motion.div
-      ref={setNodeRef}
-      style={style}
-      className="task"
-      drag="x"
-      dragConstraints={{ left: -100, right: 0 }}
-      onDragEnd={(e, info) => {
-        if (info.offset.x < -80) {
-          deleteTask(task.id);
-        }
-      }}
-      {...attributes}
-      {...listeners}
-    >
+    <div>
+      {/* 🍎 Header */}
+      <div className="header" onClick={() => setApp({ ...app, current: null })}>
+        ← {routine.name}
+      </div>
+
+      <div className="section-title">Tasks</div>
+
+      {/* 📋 Tasks */}
+      <div className="list">
+        {routine.tasks.map(task => (
+          <TaskItem
+            key={task.id}
+            task={task}
+            onToggle={toggleTask}
+            onDelete={deleteTask}
+          />
+        ))}
+      </div>
+
+      {/* ➕ Add task */}
       <input
-        type="checkbox"
-        checked={task.done}
-        onChange={() => toggleTask(task.id)}
+        placeholder="New task"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && addTask()}
       />
-      <span>{task.text}</span>
-    </motion.div>
+
+      <button onClick={addTask}>Add Task</button>
+    </div>
   );
 }
