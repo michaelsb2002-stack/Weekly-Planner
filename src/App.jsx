@@ -3,39 +3,52 @@ import { motion } from "framer-motion";
 import "./App.css";
 
 /* =========================
-   🍎 SWIPEABLE TASK ITEM
+   🍎 TASK ITEM (SWIPE)
 ========================= */
 function TaskItem({ task, onToggle, onDelete }) {
   return (
     <div style={{ position: "relative", margin: "6px 0", overflow: "hidden", borderRadius: 12 }}>
 
-      {/* 🔴 iOS-style delete background */}
-      <div
-        style={{
-          position: "absolute",
-          right: 0,
-          top: 0,
-          bottom: 0,
-          width: 100,
-          background: "#ff3b30",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "white",
-          fontWeight: 600
-        }}
-      >
+      {/* 🔴 Delete background */}
+      <div style={{
+        position: "absolute",
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: 100,
+        background: "#ff3b30",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "white",
+        fontWeight: 600
+      }}>
         Delete
       </div>
 
-      {/* 🧲 Swipe layer */}
+      {/* 🟢 Complete background */}
+      <div style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 100,
+        background: "#34c759",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "white",
+        fontWeight: 600
+      }}>
+        Done
+      </div>
+
       <motion.div
         drag="x"
-        dragConstraints={{ left: -120, right: 0 }}
+        dragConstraints={{ left: -120, right: 120 }}
         onDragEnd={(e, info) => {
-          if (info.offset.x < -80) {
-            onDelete(task.id);
-          }
+          if (info.offset.x < -80) onDelete(task.id);
+          if (info.offset.x > 80) onToggle(task.id);
         }}
         whileTap={{ scale: 0.99 }}
         transition={{ type: "tween", duration: 0.15 }}
@@ -45,22 +58,15 @@ function TaskItem({ task, onToggle, onDelete }) {
           display: "flex",
           alignItems: "center",
           gap: 10,
-          borderRadius: 12,
-          position: "relative"
+          borderRadius: 12
         }}
       >
-        <input
-          type="checkbox"
-          checked={task.done}
-          onChange={() => onToggle(task.id)}
-        />
+        <input type="checkbox" checked={task.done} readOnly />
 
-        <span
-          style={{
-            textDecoration: task.done ? "line-through" : "none",
-            color: task.done ? "#8e8e93" : "#000"
-          }}
-        >
+        <span style={{
+          textDecoration: task.done ? "line-through" : "none",
+          color: task.done ? "#8e8e93" : "#000"
+        }}>
           {task.text}
         </span>
       </motion.div>
@@ -69,7 +75,7 @@ function TaskItem({ task, onToggle, onDelete }) {
 }
 
 /* =========================
-   📱 MAIN APP
+   📱 APP
 ========================= */
 export default function App() {
   const [app, setApp] = useState({
@@ -79,6 +85,39 @@ export default function App() {
 
   const [input, setInput] = useState("");
 
+  /* 🧾 Modal state */
+  const [showModal, setShowModal] = useState(false);
+  const [newListName, setNewListName] = useState("");
+
+  /* =========================
+     🧠 PRESET ROUTINES
+  ========================= */
+  const defaultRoutines = {
+    morning: {
+      name: "Morning Routine",
+      tasks: [
+        { id: "m1", text: "Cleanser", done: false },
+        { id: "m2", text: "Moisturiser", done: false },
+        { id: "m3", text: "Sunscreen", done: false }
+      ]
+    },
+    night: {
+      name: "Night Routine",
+      tasks: [
+        { id: "n1", text: "Cleanser", done: false },
+        { id: "n2", text: "Retinol", done: false },
+        { id: "n3", text: "Moisturiser", done: false }
+      ]
+    },
+    shopping: {
+      name: "Shopping List",
+      tasks: [
+        { id: "s1", text: "Milk", done: false },
+        { id: "s2", text: "Bread", done: false }
+      ]
+    }
+  };
+
   /* 💾 LOAD */
   useEffect(() => {
     const saved = localStorage.getItem("app");
@@ -86,26 +125,10 @@ export default function App() {
     if (saved) {
       setApp(JSON.parse(saved));
     } else {
-      const initial = {
-        routines: {
-          morning: {
-            name: "Morning Routine",
-            tasks: [
-              { id: "1", text: "Cleanser", done: false },
-              { id: "2", text: "Moisturiser", done: false }
-            ]
-          },
-          chores: {
-            name: "House Chores",
-            tasks: [
-              { id: "3", text: "Wash dishes", done: false }
-            ]
-          }
-        },
+      setApp({
+        routines: defaultRoutines,
         current: null
-      };
-
-      setApp(initial);
+      });
     }
   }, []);
 
@@ -115,7 +138,27 @@ export default function App() {
   }, [app]);
 
   /* =========================
-     🏠 HOME SCREEN (Apple style)
+     🔁 REORDER
+  ========================= */
+  const moveTask = (from, to) => {
+    const tasks = [...routine.tasks];
+    const [item] = tasks.splice(from, 1);
+    tasks.splice(to, 0, item);
+
+    setApp({
+      ...app,
+      routines: {
+        ...app.routines,
+        [app.current]: {
+          ...routine,
+          tasks
+        }
+      }
+    });
+  };
+
+  /* =========================
+     🏠 HOME SCREEN
   ========================= */
   if (!app.current) {
     return (
@@ -136,6 +179,79 @@ export default function App() {
             </div>
           ))}
         </div>
+
+        {/* ➕ New List Button */}
+        <button
+          onClick={() => setShowModal(true)}
+          style={{
+            position: "fixed",
+            bottom: 20,
+            left: 20,
+            right: 20,
+            borderRadius: 14
+          }}
+        >
+          + New List
+        </button>
+
+        {/* 🧾 Modal Sheet */}
+        {showModal && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.4)",
+              display: "flex",
+              alignItems: "flex-end"
+            }}
+            onClick={() => setShowModal(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                background: "#f2f2f7",
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                padding: 16
+              }}
+            >
+              <div style={{ fontSize: 18, fontWeight: 600 }}>
+                New List
+              </div>
+
+              <input
+                placeholder="List name"
+                value={newListName}
+                onChange={(e) => setNewListName(e.target.value)}
+              />
+
+              <button
+                onClick={() => {
+                  if (!newListName.trim()) return;
+
+                  const id = Date.now().toString();
+
+                  setApp({
+                    ...app,
+                    routines: {
+                      ...app.routines,
+                      [id]: {
+                        name: newListName,
+                        tasks: []
+                      }
+                    }
+                  });
+
+                  setNewListName("");
+                  setShowModal(false);
+                }}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -148,7 +264,7 @@ export default function App() {
   const addTask = () => {
     if (!input.trim()) return;
 
-    const updated = {
+    setApp({
       ...app,
       routines: {
         ...app.routines,
@@ -164,14 +280,13 @@ export default function App() {
           ]
         }
       }
-    };
+    });
 
-    setApp(updated);
     setInput("");
   };
 
   const toggleTask = (id) => {
-    const updatedTasks = routine.tasks.map(t =>
+    const updated = routine.tasks.map(t =>
       t.id === id ? { ...t, done: !t.done } : t
     );
 
@@ -181,22 +296,20 @@ export default function App() {
         ...app.routines,
         [app.current]: {
           ...routine,
-          tasks: updatedTasks
+          tasks: updated
         }
       }
     });
   };
 
   const deleteTask = (id) => {
-    const filtered = routine.tasks.filter(t => t.id !== id);
-
     setApp({
       ...app,
       routines: {
         ...app.routines,
         [app.current]: {
           ...routine,
-          tasks: filtered
+          tasks: routine.tasks.filter(t => t.id !== id)
         }
       }
     });
@@ -204,26 +317,41 @@ export default function App() {
 
   return (
     <div>
-      {/* 🍎 Header */}
       <div className="header" onClick={() => setApp({ ...app, current: null })}>
         ← {routine.name}
       </div>
 
       <div className="section-title">Tasks</div>
 
-      {/* 📋 Tasks */}
       <div className="list">
-        {routine.tasks.map(task => (
-          <TaskItem
+        {routine.tasks.map((task, index) => (
+          <motion.div
             key={task.id}
-            task={task}
-            onToggle={toggleTask}
-            onDelete={deleteTask}
-          />
+            draggable
+            onDragEnd={(e, info) => {
+              const direction =
+                info.offset.y > 50 ? 1 :
+                info.offset.y < -50 ? -1 : 0;
+
+              const newIndex = Math.max(
+                0,
+                Math.min(routine.tasks.length - 1, index + direction)
+              );
+
+              if (newIndex !== index) {
+                moveTask(index, newIndex);
+              }
+            }}
+          >
+            <TaskItem
+              task={task}
+              onToggle={toggleTask}
+              onDelete={deleteTask}
+            />
+          </motion.div>
         ))}
       </div>
 
-      {/* ➕ Add task */}
       <input
         placeholder="New task"
         value={input}
