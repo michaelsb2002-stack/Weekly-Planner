@@ -20,8 +20,10 @@ export default function WeekScreen({
       <h1>This Week</h1>
 
       {days.map(day => {
-        const selected = week[day].listId;
-        const list = lists[selected];
+        // 🧠 SAFE ACCESS (prevents crash)
+        const selected = week?.[day]?.listId || "";
+
+        const list = lists?.[selected];
 
         return (
           <div
@@ -36,14 +38,14 @@ export default function WeekScreen({
             <strong>{day}</strong>
 
             <select
-              value={selected || ""}
+              value={selected}
               onChange={(e) =>
                 assignList(day, e.target.value)
               }
             >
               <option value="">None</option>
 
-              {Object.entries(lists).map(([id, l]) => (
+              {Object.entries(lists || {}).map(([id, l]) => (
                 <option key={id} value={id}>
                   {l.name}
                 </option>
@@ -52,7 +54,7 @@ export default function WeekScreen({
 
             {list && (
               <div style={{ marginTop: 8 }}>
-                {list.tasks.map(t => (
+                {list.tasks?.map(t => (
                   <div key={t.id}>
                     • {t.text}
                   </div>

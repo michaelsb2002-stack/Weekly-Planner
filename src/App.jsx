@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import HomeScreen from "./screens/HomeScreen";
 import WeekScreen from "./screens/WeekScreen";
+import RoutinesScreen from "./screens/RoutinesScreen";
 import BottomNav from "./components/BottomNav";
+import { defaultRoutines } from "./data/routines";
 
 const days = [
   "monday","tuesday","wednesday",
@@ -11,20 +13,21 @@ const days = [
 const createEmptyWeek = () => {
   const week = {};
   days.forEach(d => {
-    week[d] = { listId: null };
+    week[d] = { routineId: null };
   });
   return week;
 };
 
 export default function App() {
-  // 🧠 WEEK is now default screen
   const [screen, setScreen] = useState("week");
 
   const [lists, setLists] = useState({});
+  const [routines, setRoutines] = useState(defaultRoutines);
   const [week, setWeek] = useState(createEmptyWeek());
 
   const [activeListId, setActiveListId] = useState(null);
 
+  // LOAD
   useEffect(() => {
     const saved = localStorage.getItem("planner");
 
@@ -34,54 +37,22 @@ export default function App() {
       const parsed = JSON.parse(saved);
 
       setLists(parsed.lists || {});
+      setRoutines(parsed.routines || defaultRoutines);
       setWeek(parsed.week || createEmptyWeek());
     } catch {}
   }, []);
 
+  // SAVE
   useEffect(() => {
     localStorage.setItem(
       "planner",
-      JSON.stringify({ lists, week })
+      JSON.stringify({ lists, routines, week })
     );
-  }, [lists, week]);
+  }, [lists, routines, week]);
 
-  // ======================
-  // LIST VIEW (unchanged)
-  // ======================
+  // ================= LIST VIEW =================
   if (activeListId) {
     const list = lists[activeListId];
-
-    const addTask = () => {
-      const text = prompt("Task:");
-      if (!text) return;
-
-      setLists(prev => ({
-        ...prev,
-        [activeListId]: {
-          ...prev[activeListId],
-          tasks: [
-            ...prev[activeListId].tasks,
-            {
-              id: Date.now(),
-              text,
-              done: false
-            }
-          ]
-        }
-      }));
-    };
-
-    const toggleTask = (taskId) => {
-      setLists(prev => ({
-        ...prev,
-        [activeListId]: {
-          ...prev[activeListId],
-          tasks: prev[activeListId].tasks.map(t =>
-            t.id === taskId ? { ...t, done: !t.done } : t
-          )
-        }
-      }));
-    };
 
     return (
       <div style={{ padding: 16 }}>
@@ -91,60 +62,37 @@ export default function App() {
 
         <h2>{list.name}</h2>
 
-        <button onClick={addTask}>
-          + Add Task
-        </button>
-
-        {list.tasks.map(task => (
-          <div
-            key={task.id}
-            style={{
-              display: "flex",
-              gap: 10,
-              padding: 8
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={task.done}
-              onChange={() => toggleTask(task.id)}
-            />
-
-            <span
-              style={{
-                textDecoration: task.done
-                  ? "line-through"
-                  : "none",
-                color: task.done ? "#999" : "#000"
-              }}
-            >
-              {task.text}
-            </span>
-          </div>
+        {list.tasks?.map(t => (
+          <div key={t.id}>• {t.text}</div>
         ))}
       </div>
     );
   }
 
-  // ======================
-  // MAIN APP
-  // ======================
+  // ================= MAIN APP =================
   return (
     <div style={{ paddingBottom: 70 }}>
-      
-      {screen === "templates" && (
+
+      {screen === "week" && (
+        <WeekScreen
+          week={week}
+          setWeek={setWeek}
+          routines={routines}
+        />
+      )}
+
+      {screen === "routines" && (
+        <RoutinesScreen
+          routines={routines}
+          setRoutines={setRoutines}
+        />
+      )}
+
+      {screen === "home" && (
         <HomeScreen
           lists={lists}
           setLists={setLists}
           openList={setActiveListId}
-        />
-      )}
-
-      {screen === "week" && (
-        <WeekScreen
-          lists={lists}
-          week={week}
-          setWeek={setWeek}
         />
       )}
 
