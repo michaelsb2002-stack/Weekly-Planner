@@ -3,73 +3,44 @@ import { motion } from "framer-motion";
 import "./App.css";
 
 /* =========================
-   🍎 TASK ITEM (SWIPE)
+   📋 TASK ITEM (CHECKBOX ONLY)
 ========================= */
-function TaskItem({ task, onToggle, onDelete }) {
+function TaskItem({ task, onToggle }) {
   return (
-    <div style={{ position: "relative", margin: "6px 0", overflow: "hidden", borderRadius: 12 }}>
-
-      {/* 🔴 Delete background */}
-      <div style={{
-        position: "absolute",
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: 100,
-        background: "#ff3b30",
+    <div
+      style={{
+        background: "white",
+        padding: "14px",
+        borderRadius: 12,
+        margin: "6px 0",
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        fontWeight: 600
-      }}>
-        Delete
-      </div>
-
-      {/* 🟢 Complete background */}
-      <div style={{
-        position: "absolute",
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 100,
-        background: "#34c759",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        fontWeight: 600
-      }}>
-        Done
-      </div>
-
-      <motion.div
-        drag="x"
-        dragConstraints={{ left: -120, right: 120 }}
-        onDragEnd={(e, info) => {
-          if (info.offset.x < -80) onDelete(task.id);
-          if (info.offset.x > 80) onToggle(task.id);
-        }}
-        whileTap={{ scale: 0.99 }}
-        transition={{ type: "tween", duration: 0.15 }}
+        gap: 12
+      }}
+    >
+      {/* ☑️ Large checkbox */}
+      <input
+        type="checkbox"
+        checked={task.done}
+        onChange={() => onToggle(task.id)}
         style={{
-          background: "white",
-          padding: "14px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          borderRadius: 12
+          width: 22,
+          height: 22,
+          accentColor: "#007aff"
+        }}
+      />
+
+      {/* Text */}
+      <span
+        style={{
+          fontSize: 16,
+          color: task.done ? "#8e8e93" : "#000",
+          textDecoration: task.done ? "line-through" : "none",
+          opacity: task.done ? 0.6 : 1
         }}
       >
-        <input type="checkbox" checked={task.done} readOnly />
-
-        <span style={{
-          textDecoration: task.done ? "line-through" : "none",
-          color: task.done ? "#8e8e93" : "#000"
-        }}>
-          {task.text}
-        </span>
-      </motion.div>
+        {task.text}
+      </span>
     </div>
   );
 }
@@ -84,8 +55,6 @@ export default function App() {
   });
 
   const [input, setInput] = useState("");
-
-  /* 🧾 Modal state */
   const [showModal, setShowModal] = useState(false);
   const [newListName, setNewListName] = useState("");
 
@@ -138,7 +107,7 @@ export default function App() {
   }, [app]);
 
   /* =========================
-     🔁 REORDER
+     🔁 REORDER TASKS
   ========================= */
   const moveTask = (from, to) => {
     const tasks = [...routine.tasks];
@@ -167,7 +136,7 @@ export default function App() {
 
         <div className="section-title">My Lists</div>
 
-        <div className="list">
+        <div style={{ padding: 12 }}>
           {Object.entries(app.routines).map(([id, r]) => (
             <div
               key={id}
@@ -188,13 +157,19 @@ export default function App() {
             bottom: 20,
             left: 20,
             right: 20,
-            borderRadius: 14
+            borderRadius: 14,
+            padding: 14,
+            background: "#007aff",
+            color: "white",
+            border: "none",
+            fontSize: 16,
+            fontWeight: 600
           }}
         >
           + New List
         </button>
 
-        {/* 🧾 Modal Sheet */}
+        {/* 🧾 Modal */}
         {showModal && (
           <div
             style={{
@@ -302,19 +277,6 @@ export default function App() {
     });
   };
 
-  const deleteTask = (id) => {
-    setApp({
-      ...app,
-      routines: {
-        ...app.routines,
-        [app.current]: {
-          ...routine,
-          tasks: routine.tasks.filter(t => t.id !== id)
-        }
-      }
-    });
-  };
-
   return (
     <div>
       <div className="header" onClick={() => setApp({ ...app, current: null })}>
@@ -323,7 +285,8 @@ export default function App() {
 
       <div className="section-title">Tasks</div>
 
-      <div className="list">
+      {/* Tasks */}
+      <div style={{ padding: 12 }}>
         {routine.tasks.map((task, index) => (
           <motion.div
             key={task.id}
@@ -343,15 +306,12 @@ export default function App() {
               }
             }}
           >
-            <TaskItem
-              task={task}
-              onToggle={toggleTask}
-              onDelete={deleteTask}
-            />
+            <TaskItem task={task} onToggle={toggleTask} />
           </motion.div>
         ))}
       </div>
 
+      {/* Input */}
       <input
         placeholder="New task"
         value={input}
