@@ -10,10 +10,24 @@ const days = [
   "thursday","friday","saturday","sunday"
 ];
 
+// Get all tasks from a routine
+const getRoutineTasks = (routine) => {
+  if (!routine || !routine.tasks) return [];
+  
+  return routine.tasks.map((task, idx) => ({
+    id: `${idx}`,
+    text: task,
+    completed: false
+  }));
+};
+
 const createEmptyWeek = () => {
   const week = {};
   days.forEach(d => {
-    week[d] = { routineId: null };
+    week[d] = { 
+      routineId: null,
+      tasks: []
+    };
   });
   return week;
 };
@@ -71,30 +85,45 @@ export default function App() {
 
   // ================= MAIN APP =================
   return (
-    <div style={{ paddingBottom: 70 }}>
+    <div style={{
+      display: "flex",
+      flexDirection: "column",
+      height: "100vh",
+      maxWidth: "600px",
+      margin: "0 auto",
+      background: "var(--bg)",
+      overflow: "hidden"
+    }}>
+      <div style={{
+        flex: 1,
+        overflowY: "auto",
+        overscrollBehavior: "contain",
+        paddingBottom: 70
+      }}>
+        {screen === "week" && (
+          <WeekScreen
+            week={week}
+            setWeek={setWeek}
+            routines={routines}
+            getRoutineTasks={getRoutineTasks}
+          />
+        )}
 
-      {screen === "week" && (
-        <WeekScreen
-          week={week}
-          setWeek={setWeek}
-          routines={routines}
-        />
-      )}
+        {screen === "routines" && (
+          <RoutinesScreen
+            routines={routines}
+            setRoutines={setRoutines}
+          />
+        )}
 
-      {screen === "routines" && (
-        <RoutinesScreen
-          routines={routines}
-          setRoutines={setRoutines}
-        />
-      )}
-
-      {screen === "home" && (
-        <HomeScreen
-          lists={lists}
-          setLists={setLists}
-          openList={setActiveListId}
-        />
-      )}
+        {screen === "home" && (
+          <HomeScreen
+            lists={lists}
+            setLists={setLists}
+            openList={setActiveListId}
+          />
+        )}
+      </div>
 
       <BottomNav
         screen={screen}
