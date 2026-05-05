@@ -333,6 +333,7 @@ export default function WeekScreen({
                     }}
                     style={{
                       flex: 1,
+                      maxWidth: "170px",
                       padding: "10px 12px",
                       border: "1px solid var(--border)",
                       borderRadius: 8,
