@@ -13,20 +13,55 @@ export default function WeekScreen({
   const [deletionMode, setDeletionMode] = useState({});
   const [selectedForDeletion, setSelectedForDeletion] = useState({});
 
-  // Select routine for a day
+  const routinePriority = {
+    morning_routine: -10,
+    night_routine: 10
+  };
+
+  const sortRoutineIds = (routineIds = []) => {
+    return [...routineIds].sort((a, b) => {
+      const pa = routinePriority[a] || 0;
+      const pb = routinePriority[b] || 0;
+      if (pa !== pb) return pa - pb;
+      return routineIds.indexOf(a) - routineIds.indexOf(b);
+    });
+  };
+
+  const orderTasks = (tasks = []) => {
+    const morningTasks = tasks.filter(t => t.sourceRoutineId === "morning_routine");
+    const nightTasks = tasks.filter(t => t.sourceRoutineId === "night_routine");
+    const middleTasks = tasks.filter(t => !["morning_routine", "night_routine"].includes(t.sourceRoutineId));
+    return [...morningTasks, ...middleTasks, ...nightTasks];
+  };
+
+  // Toggle a routine preset for a day
   const selectRoutine = (day, routineId) => {
-    const routine = routines[routineId];
-    const tasks = getRoutineTasks(routine);
+    if (!routineId) return;
+    const isSelected = (week[day]?.routineIds || []).includes(routineId);
 
-    setWeek(prev => ({
-      ...prev,
-      [day]: {
-        routineId,
-        tasks
-      }
-    }));
+    setWeek(prev => {
+      const existingIds = prev[day].routineIds || [];
+      const updatedIds = isSelected
+        ? existingIds.filter(id => id !== routineId)
+        : [...existingIds, routineId];
+      const sortedIds = sortRoutineIds(updatedIds);
+      const updatedTasks = isSelected
+        ? prev[day].tasks.filter(task => task.sourceRoutineId !== routineId)
+        : [
+            ...prev[day].tasks,
+            ...getRoutineTasks(routines[routineId], `${routineId}-${Date.now()}`, routineId)
+          ];
 
-    // Clear deletion state when routine changes
+      return {
+        ...prev,
+        [day]: {
+          ...prev[day],
+          routineIds: sortedIds,
+          tasks: orderTasks(updatedTasks)
+        }
+      };
+    });
+
     setDeletionMode(prev => ({
       ...prev,
       [day]: false
@@ -194,7 +229,7 @@ export default function WeekScreen({
 
             {/* Routine Dropdown */}
             <select
-              value={dayData.routineId || ""}
+              value=""
               onChange={(e) => selectRoutine(day, e.target.value)}
               style={{
                 width: "100%",
@@ -215,83 +250,151 @@ export default function WeekScreen({
                 backgroundSize: "20px"
               }}
             >
-              <option value="">Select a routine...</option>
+              <option value="">Add or remove a routine...</option>
               {Object.entries(routines).map(([id, routine]) => (
                 <option key={id} value={id}>
-                  {routine.name}
+                  {(dayData.routineIds || []).includes(id) ? "✔ " : ""}{routine.name}
                 </option>
               ))}
             </select>
+
+            {dayData.routineIds?.length > 0 && (
+              <div style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                padding: "12px 16px",
+                borderBottom: "1px solid var(--border)",
+                background: "var(--card-bg)"
+              }}>
+                {sortRoutineIds(dayData.routineIds || []).map((id, idx) => (
+                  <button
+                    key={`${id}-${idx}`}
+                    onClick={() => selectRoutine(day, id)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 10px",
+                      borderRadius: 999,
+                      background: "rgba(0, 122, 255, 0.14)",
+                      border: "1px solid rgba(0, 122, 255, 0.22)",
+                      color: "var(--text)",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      transition: "transform 0.15s ease"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "scale(1.02)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "none";
+                    }}
+                  >
+                    ✔ {routines[id]?.name || id}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Tasks */}
             <div style={{ padding: "8px 0" }}>
               {dayData.tasks && dayData.tasks.length > 0 ? (
                 dayData.tasks.map((task, idx) => {
                   const isSelected = (selectedForDeletion[day] || []).includes(task.id);
+                  const prevTask = dayData.tasks[idx - 1];
+                  const currentSection = task.sourceRoutineId || "custom";
+                  const previousSection = prevTask?.sourceRoutineId || "custom";
+                  const showSectionHeader = idx === 0 || currentSection !== previousSection;
+                  const sectionLabel = task.sourceRoutineId
+                    ? routines[task.sourceRoutineId]?.name || "Preset"
+                    : "Additional Tasks";
 
                   return (
-                    <div
-                      key={task.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "12px 16px",
-                        borderBottom: idx === dayData.tasks.length - 1 ? "none" : "1px solid var(--border)",
-                        background: isSelected ? "var(--accent-light)" : "var(--card-bg)"
-                      }}
-                    >
-                      {/* Checkbox */}
-                      {isInDeletionMode && (
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleTaskSelection(day, task.id)}
-                          style={{
-                            width: 20,
-                            height: 20,
-                            cursor: "pointer",
-                            flexShrink: 0,
-                            accentColor: "var(--accent)"
-                          }}
-                        />
+                    <div key={task.id}>
+                      {showSectionHeader && (
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "12px 16px 6px",
+                          color: "var(--text-secondary)"
+                        }}>
+                          <div style={{ flex: 1, height: 1, background: "var(--border)", opacity: 0.35 }} />
+                          <span style={{
+                            fontSize: 12,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.08em",
+                            fontWeight: 700
+                          }}>
+                            {sectionLabel}
+                          </span>
+                          <div style={{ flex: 1, height: 1, background: "var(--border)", opacity: 0.35 }} />
+                        </div>
                       )}
 
-                      {!isInDeletionMode && (
-                        <input
-                          type="checkbox"
-                          checked={task.completed}
-                          onChange={() => toggleTaskComplete(day, task.id)}
-                          style={{
-                            width: 20,
-                            height: 20,
-                            cursor: "pointer",
-                            flexShrink: 0,
-                            accentColor: "var(--accent)"
-                          }}
-                        />
-                      )}
-
-                      {/* Task Text */}
-                      <input
-                        type="text"
-                        value={task.text}
-                        onChange={(e) =>
-                          editTaskText(day, task.id, e.target.value)
-                        }
-                        disabled={isInDeletionMode}
+                      <div
                         style={{
-                          flex: 1,
-                          border: "none",
-                          background: "transparent",
-                          fontSize: 15,
-                          textDecoration: task.completed ? "line-through" : "none",
-                          color: task.completed ? "var(--text-secondary)" : "var(--text)",
-                          fontFamily: "inherit",
-                          cursor: isInDeletionMode ? "not-allowed" : "text",
-                          opacity: isInDeletionMode ? 0.6 : 1
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          padding: "12px 16px",
+                          borderBottom: idx === dayData.tasks.length - 1 ? "none" : "1px solid var(--border)",
+                          background: isSelected ? "var(--accent-light)" : "var(--card-bg)"
                         }}
-                      />
+                      >
+                        {/* Checkbox */}
+                        {isInDeletionMode && (
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleTaskSelection(day, task.id)}
+                            style={{
+                              width: 20,
+                              height: 20,
+                              cursor: "pointer",
+                              flexShrink: 0,
+                              accentColor: "var(--accent)"
+                            }}
+                          />
+                        )}
+
+                        {!isInDeletionMode && (
+                          <input
+                            type="checkbox"
+                            checked={task.completed}
+                            onChange={() => toggleTaskComplete(day, task.id)}
+                            style={{
+                              width: 20,
+                              height: 20,
+                              cursor: "pointer",
+                              flexShrink: 0,
+                              accentColor: "var(--accent)"
+                            }}
+                          />
+                        )}
+
+                        {/* Task Text */}
+                        <input
+                          type="text"
+                          value={task.text}
+                          onChange={(e) =>
+                            editTaskText(day, task.id, e.target.value)
+                          }
+                          disabled={isInDeletionMode}
+                          style={{
+                            flex: 1,
+                            border: "none",
+                            background: "transparent",
+                            fontSize: 15,
+                            textDecoration: task.completed ? "line-through" : "none",
+                            color: task.completed ? "var(--text-secondary)" : "var(--text)",
+                            fontFamily: "inherit",
+                            cursor: isInDeletionMode ? "not-allowed" : "text",
+                            opacity: isInDeletionMode ? 0.6 : 1
+                          }}
+                        />
+                      </div>
                     </div>
                   );
                 })

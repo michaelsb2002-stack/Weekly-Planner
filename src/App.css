@@ -32,12 +32,15 @@ input {
 }
 
 input[type="text"] {
+  appearance: none;
   -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
 select {
-  -webkit-appearance: none;
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
 /* Scrollbar styling */
@@ -56,6 +59,4 @@ select {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
-}
-  font-weight: 600;
 }

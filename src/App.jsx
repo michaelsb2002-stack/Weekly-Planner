@@ -11,21 +11,22 @@ const days = [
 ];
 
 // Get all tasks from a routine
-const getRoutineTasks = (routine) => {
+const getRoutineTasks = (routine, prefix = "", routineId = null) => {
   if (!routine || !routine.tasks) return [];
   
   return routine.tasks.map((task, idx) => ({
-    id: `${idx}`,
+    id: `${prefix}-${idx}`,
     text: task,
-    completed: false
+    completed: false,
+    sourceRoutineId: routineId
   }));
 };
 
 const createEmptyWeek = () => {
   const week = {};
   days.forEach(d => {
-    week[d] = { 
-      routineId: null,
+    week[d] = {
+      routineIds: [],
       tasks: []
     };
   });
@@ -49,10 +50,20 @@ export default function App() {
 
     try {
       const parsed = JSON.parse(saved);
+      const loadedWeek = parsed.week || createEmptyWeek();
+      const normalizedWeek = Object.fromEntries(
+        Object.entries(loadedWeek).map(([day, data]) => [
+          day,
+          {
+            routineIds: data?.routineIds || (data?.routineId ? [data.routineId] : []),
+            tasks: data?.tasks || []
+          }
+        ])
+      );
 
       setLists(parsed.lists || {});
       setRoutines(parsed.routines || defaultRoutines);
-      setWeek(parsed.week || createEmptyWeek());
+      setWeek(normalizedWeek);
     } catch {}
   }, []);
 
