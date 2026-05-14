@@ -340,7 +340,7 @@ export default function WeekScreen({
                           gap: 12,
                           padding: "12px 16px",
                           borderBottom: idx === dayData.tasks.length - 1 ? "none" : "1px solid var(--border)",
-                          background: isSelected ? "var(--accent-light)" : "var(--card-bg)"
+                          background: isSelected ? "#f5f5f5" : "var(--card-bg)"
                         }}
                       >
                         {/* Checkbox */}
@@ -388,10 +388,10 @@ export default function WeekScreen({
                             background: "transparent",
                             fontSize: 15,
                             textDecoration: task.completed ? "line-through" : "none",
-                            color: task.completed ? "var(--text-secondary)" : "var(--text)",
+                            color: isSelected ? "#111" : task.completed ? "var(--text-secondary)" : "var(--text)",
                             fontFamily: "inherit",
                             cursor: isInDeletionMode ? "not-allowed" : "text",
-                            opacity: isInDeletionMode ? 0.6 : 1
+                            opacity: isInDeletionMode ? (isSelected ? 1 : 0.6) : 1
                           }}
                         />
                       </div>
@@ -436,8 +436,8 @@ export default function WeekScreen({
                     }}
                     style={{
                       flex: 1,
-                      maxWidth: "170px",
-                      padding: "10px 12px",
+                      maxWidth: "155px",
+                      padding: "11px",
                       border: "1px solid var(--border)",
                       borderRadius: 8,
                       fontSize: 15,
@@ -446,40 +446,44 @@ export default function WeekScreen({
                       color: "var(--text)"
                     }}
                   />
-                  <button
-                    onClick={() => addCustomTask(day)}
-                    style={{
-                      background: "var(--green)",
-                      color: "white",
-                      border: "none",
-                      padding: "10px 16px",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      fontSize: 14,
-                      fontWeight: "600",
-                      fontFamily: "inherit",
-                      whiteSpace: "nowrap"
-                    }}
-                  >
-                    + Add
-                  </button>
-                  <button
-                    onClick={() => enterDeletionMode(day)}
-                    style={{
-                      background: "var(--red)",
-                      color: "white",
-                      border: "none",
-                      padding: "10px 16px",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      fontSize: 14,
-                      fontWeight: "600",
-                      fontFamily: "inherit",
-                      whiteSpace: "nowrap"
-                    }}
-                  >
-                    Delete
-                  </button>
+                  <div style={{ display: "flex", gap: 8, marginLeft: "auto" }}>
+                    <button
+                      onClick={() => addCustomTask(day)}
+                      style={{
+                        background: "var(--green)",
+                        color: "white",
+                        border: "none",
+                        minWidth: 80,
+                        padding: "12px 16px",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        fontSize: 15,
+                        fontWeight: "600",
+                        fontFamily: "inherit",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      + Add
+                    </button>
+                    <button
+                      onClick={() => enterDeletionMode(day)}
+                      style={{
+                        background: "var(--gray)",
+                        color: "white",
+                        border: "none",
+                        minWidth: 80,
+                        padding: "12px 16px",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        fontSize: 15,
+                        fontWeight: "600",
+                        fontFamily: "inherit",
+                        whiteSpace: "nowrap"
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
@@ -487,19 +491,20 @@ export default function WeekScreen({
                   <button
                     onClick={() => cancelDeletion(day)}
                     style={{
-                      background: "var(--gray)",
+                      background: "var(--green)",
                       color: "white",
                       border: "none",
-                      padding: "10px 16px",
+                      minWidth: 80,
+                      padding: "12px",
                       borderRadius: 8,
                       cursor: "pointer",
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: "600",
                       fontFamily: "inherit",
                       whiteSpace: "nowrap"
                     }}
                   >
-                    Cancel
+                    Confirm
                   </button>
                   <button
                     onClick={() => confirmDeletion(day)}
@@ -507,16 +512,17 @@ export default function WeekScreen({
                       background: "var(--red)",
                       color: "white",
                       border: "none",
-                      padding: "10px 16px",
+                      minWidth: 80,
+                      padding: "12px 16px",
                       borderRadius: 8,
                       cursor: "pointer",
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: "600",
                       fontFamily: "inherit",
                       whiteSpace: "nowrap"
                     }}
                   >
-                    Confirm
+                    Delete
                   </button>
                 </>
               )}
