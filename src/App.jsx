@@ -10,6 +10,13 @@ const days = [
   "thursday","friday","saturday","sunday"
 ];
 
+const getDefaultTimerForTask = (routineId, task) => {
+  if (routineId === "washing_clothes" && task.toLowerCase().includes("washing machine")) {
+    return 180;
+  }
+  return 0;
+};
+
 // Get all tasks from a routine
 const getRoutineTasks = (routine, prefix = "", routineId = null) => {
   if (!routine || !routine.tasks) return [];
@@ -18,7 +25,8 @@ const getRoutineTasks = (routine, prefix = "", routineId = null) => {
     id: `${prefix}-${idx}`,
     text: task,
     completed: false,
-    sourceRoutineId: routineId
+    sourceRoutineId: routineId,
+    timerMinutes: getDefaultTimerForTask(routineId, task)
   }));
 };
 

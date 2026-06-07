@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getWeekDates } from "../utils/dateUtils";
 
 export default function WeekScreen({
@@ -12,6 +12,9 @@ export default function WeekScreen({
   const [newTaskInput, setNewTaskInput] = useState({});
   const [deletionMode, setDeletionMode] = useState({});
   const [selectedForDeletion, setSelectedForDeletion] = useState({});
+  const [notificationPermission, setNotificationPermission] = useState("default");
+  const timerRefs = useRef({});
+  const notificationSupported = typeof window !== "undefined" && typeof Notification !== "undefined";
 
   const routinePriority = {
     morning_routine: -10,
@@ -78,9 +81,19 @@ export default function WeekScreen({
       ...prev,
       [day]: {
         ...prev[day],
-        tasks: prev[day].tasks.map(t =>
-          t.id === taskId ? { ...t, completed: !t.completed } : t
-        )
+        tasks: prev[day].tasks.map(t => {
+          if (t.id !== taskId) return t;
+
+          const completed = !t.completed;
+          return {
+            ...t,
+            completed,
+            notificationDueAt:
+              completed && t.timerMinutes > 0
+                ? Date.now() + t.timerMinutes * 60 * 1000
+                : undefined
+          };
+        })
       }
     }));
   };
@@ -158,7 +171,8 @@ export default function WeekScreen({
     const newTask = {
       id: `custom-${Date.now()}`,
       text: taskText,
-      completed: false
+      completed: false,
+      timerMinutes: 0
     };
 
     setWeek(prev => ({
@@ -175,6 +189,124 @@ export default function WeekScreen({
     }));
   };
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    setNotificationPermission(Notification.permission);
+  }, []);
+
+  const askForNotificationPermission = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+  };
+
+  const clearTaskTimer = (taskId) => {
+    if (timerRefs.current[taskId]) {
+      clearTimeout(timerRefs.current[taskId]);
+      delete timerRefs.current[taskId];
+    }
+  };
+
+  const triggerNotification = (day, task) => {
+    if (notificationPermission === "granted") {
+      new Notification("Timer complete", {
+        body: `${task.text} is ready.`,
+        tag: task.id
+      });
+    }
+
+    setWeek(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        tasks: prev[day].tasks.map(t =>
+          t.id === task.id
+            ? { ...t, notificationDueAt: undefined }
+            : t
+        )
+      }
+    }));
+
+    clearTaskTimer(task.id);
+  };
+
+  const scheduleTaskNotification = (day, task) => {
+    clearTaskTimer(task.id);
+    if (!task.completed || !task.timerMinutes || !task.notificationDueAt) return;
+
+    const remaining = task.notificationDueAt - Date.now();
+    if (remaining <= 0) {
+      triggerNotification(day, task);
+      return;
+    }
+
+    timerRefs.current[task.id] = window.setTimeout(() => {
+      triggerNotification(day, task);
+    }, remaining);
+  };
+
+  useEffect(() => {
+    Object.entries(week).forEach(([day, dayData]) => {
+      dayData.tasks.forEach(task => {
+        if (task.completed && task.timerMinutes > 0 && task.notificationDueAt) {
+          scheduleTaskNotification(day, task);
+        } else {
+          clearTaskTimer(task.id);
+        }
+      });
+    });
+
+    return () => {
+      Object.keys(timerRefs.current).forEach(clearTaskTimer);
+    };
+  }, [week]);
+
+  const updateTaskTimer = (day, taskId, timerMinutes) => {
+    setWeek(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        tasks: prev[day].tasks.map(t => {
+          if (t.id !== taskId) return t;
+
+          return {
+            ...t,
+            timerMinutes,
+            notificationDueAt:
+              t.completed && timerMinutes > 0
+                ? Date.now() + timerMinutes * 60 * 1000
+                : undefined
+          };
+        })
+      }
+    }));
+  };
+
+  const formatDuration = (minutes) => {
+    if (!minutes || minutes <= 0) return "None";
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (hours > 0) {
+      return remainingMinutes === 0
+        ? `${hours}h`
+        : `${hours}h ${remainingMinutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  const formatRemaining = (dueAt) => {
+    const remainingMs = Math.max(0, dueAt - Date.now());
+    const minutes = Math.ceil(remainingMs / 60000);
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (hours > 0) {
+      return remainingMinutes === 0
+        ? `${hours}h`
+        : `${hours}h ${remainingMinutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
   return (
     <div style={{ padding: "16px 12px", background: "var(--bg)" }}>
       <h1 style={{
@@ -185,6 +317,54 @@ export default function WeekScreen({
       }}>
         This Week
       </h1>
+
+      {!notificationSupported && (
+        <div style={{
+          marginBottom: 16,
+          padding: 12,
+          borderRadius: 12,
+          background: "rgba(255, 69, 58, 0.08)",
+          color: "var(--text)"
+        }}>
+          Browser notifications are not supported in this environment.
+        </div>
+      )}
+
+      {notificationSupported && notificationPermission !== "granted" && (
+        <div style={{
+          marginBottom: 16,
+          padding: 12,
+          borderRadius: 12,
+          background: "rgba(0, 122, 255, 0.1)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          color: "var(--text)"
+        }}>
+          <div style={{ fontSize: 14 }}>
+            {notificationPermission === "denied"
+              ? "Notifications are blocked in your browser. You can still set timers, but they will only show while the page is open."
+              : "Enable browser notifications to receive alerts when timers finish."}
+          </div>
+          <button
+            onClick={askForNotificationPermission}
+            style={{
+              background: "var(--green)",
+              color: "white",
+              border: "none",
+              padding: "10px 14px",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontSize: 14,
+              fontWeight: 600,
+              fontFamily: "inherit"
+            }}
+          >
+            Enable notifications
+          </button>
+        </div>
+      )}
 
       {days.map(day => {
         const dayData = week[day];
@@ -394,6 +574,50 @@ export default function WeekScreen({
                             opacity: isInDeletionMode ? (isSelected ? 1 : 0.6) : 1
                           }}
                         />
+                      </div>
+
+                      <div style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "0 16px 12px",
+                        borderBottom: idx === dayData.tasks.length - 1 ? "none" : "1px solid var(--border)",
+                        background: isSelected ? "#f5f5f5" : "var(--card-bg)"
+                      }}>
+                        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                          Notify after
+                        </span>
+                        <select
+                          value={task.timerMinutes || 0}
+                          onChange={(e) => updateTaskTimer(day, task.id, Number(e.target.value))}
+                          disabled={isInDeletionMode}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 8,
+                            border: "1px solid var(--border)",
+                            background: "var(--bg)",
+                            color: "var(--text)",
+                            fontSize: 13,
+                            cursor: isInDeletionMode ? "not-allowed" : "pointer",
+                            minWidth: 110
+                          }}
+                        >
+                          <option value={0}>Off</option>
+                          <option value={15}>15 min</option>
+                          <option value={30}>30 min</option>
+                          <option value={60}>1 hour</option>
+                          <option value={120}>2 hours</option>
+                          <option value={180}>3 hours</option>
+                          <option value={240}>4 hours</option>
+                        </select>
+                        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                          {task.completed && task.notificationDueAt
+                            ? `Scheduled in ${formatRemaining(task.notificationDueAt)}`
+                            : task.timerMinutes
+                              ? `Will notify after ${formatDuration(task.timerMinutes)}`
+                              : "No timer set"}
+                        </span>
                       </div>
                     </div>
                   );
