@@ -26,7 +26,9 @@ const getRoutineTasks = (routine, prefix = "", routineId = null) => {
     text: task,
     completed: false,
     sourceRoutineId: routineId,
-    timerMinutes: getDefaultTimerForTask(routineId, task)
+    timerEnabled: false,
+    timerMinutes: 0,
+    defaultTimerMinutes: getDefaultTimerForTask(routineId, task)
   }));
 };
 

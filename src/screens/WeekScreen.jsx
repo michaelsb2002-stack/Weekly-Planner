@@ -89,8 +89,37 @@ export default function WeekScreen({
             ...t,
             completed,
             notificationDueAt:
-              completed && t.timerMinutes > 0
+              completed && t.timerEnabled && t.timerMinutes > 0
                 ? Date.now() + t.timerMinutes * 60 * 1000
+                : undefined
+          };
+        })
+      }
+    }));
+  };
+
+  const toggleTaskTimer = (day, taskId) => {
+    setWeek(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        tasks: prev[day].tasks.map(t => {
+          if (t.id !== taskId) return t;
+
+          const timerEnabled = !t.timerEnabled;
+          const timerMinutes = timerEnabled
+            ? t.timerMinutes > 0
+              ? t.timerMinutes
+              : t.defaultTimerMinutes || 0
+            : 0;
+
+          return {
+            ...t,
+            timerEnabled,
+            timerMinutes,
+            notificationDueAt:
+              timerEnabled && t.completed && timerMinutes > 0
+                ? Date.now() + timerMinutes * 60 * 1000
                 : undefined
           };
         })
@@ -273,13 +302,27 @@ export default function WeekScreen({
             ...t,
             timerMinutes,
             notificationDueAt:
-              t.completed && timerMinutes > 0
+              t.completed && t.timerEnabled && timerMinutes > 0
                 ? Date.now() + timerMinutes * 60 * 1000
                 : undefined
           };
         })
       }
     }));
+  };
+
+  const minutesToTimeValue = (minutes) => {
+    const h = Math.floor((minutes || 0) / 60);
+    const m = (minutes || 0) % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  };
+
+  const timeValueToMinutes = (timeValue) => {
+    const [hours = "0", mins = "0"] = timeValue.split(":");
+    const h = Number(hours);
+    const m = Number(mins);
+    if (Number.isNaN(h) || Number.isNaN(m)) return 0;
+    return h * 60 + m;
   };
 
   const formatDuration = (minutes) => {
@@ -574,50 +617,64 @@ export default function WeekScreen({
                             opacity: isInDeletionMode ? (isSelected ? 1 : 0.6) : 1
                           }}
                         />
-                      </div>
 
-                      <div style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "0 16px 12px",
-                        borderBottom: idx === dayData.tasks.length - 1 ? "none" : "1px solid var(--border)",
-                        background: isSelected ? "#f5f5f5" : "var(--card-bg)"
-                      }}>
-                        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                          Notify after
-                        </span>
-                        <select
-                          value={task.timerMinutes || 0}
-                          onChange={(e) => updateTaskTimer(day, task.id, Number(e.target.value))}
-                          disabled={isInDeletionMode}
-                          style={{
-                            padding: "8px 10px",
-                            borderRadius: 8,
-                            border: "1px solid var(--border)",
-                            background: "var(--bg)",
-                            color: "var(--text)",
-                            fontSize: 13,
-                            cursor: isInDeletionMode ? "not-allowed" : "pointer",
-                            minWidth: 110
-                          }}
-                        >
-                          <option value={0}>Off</option>
-                          <option value={15}>15 min</option>
-                          <option value={30}>30 min</option>
-                          <option value={60}>1 hour</option>
-                          <option value={120}>2 hours</option>
-                          <option value={180}>3 hours</option>
-                          <option value={240}>4 hours</option>
-                        </select>
-                        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                          {task.completed && task.notificationDueAt
-                            ? `Scheduled in ${formatRemaining(task.notificationDueAt)}`
-                            : task.timerMinutes
-                              ? `Will notify after ${formatDuration(task.timerMinutes)}`
-                              : "No timer set"}
-                        </span>
+                        {!isInDeletionMode && (
+                          <div style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            flexShrink: 0
+                          }}>
+                            <button
+                              onClick={() => toggleTaskTimer(day, task.id)}
+                              style={{
+                                background: task.timerEnabled ? "var(--red)" : "var(--green)",
+                                color: "white",
+                                border: "none",
+                                padding: "8px 12px",
+                                borderRadius: 8,
+                                cursor: "pointer",
+                                fontSize: 13,
+                                fontWeight: 600,
+                                fontFamily: "inherit",
+                                whiteSpace: "nowrap"
+                              }}
+                            >
+                              {task.timerEnabled ? "Remove timer" : "Add timer"}
+                            </button>
+
+                            {task.timerEnabled && (
+                              <>
+                                <input
+                                  type="time"
+                                  value={minutesToTimeValue(task.timerMinutes || task.defaultTimerMinutes || 0)}
+                                  onChange={(e) => updateTaskTimer(day, task.id, timeValueToMinutes(e.target.value))}
+                                  disabled={isInDeletionMode}
+                                  step={60}
+                                  min="00:00"
+                                  max="23:59"
+                                  style={{
+                                    padding: "8px 10px",
+                                    borderRadius: 8,
+                                    border: "1px solid var(--border)",
+                                    background: "var(--bg)",
+                                    color: "var(--text)",
+                                    fontSize: 13,
+                                    cursor: isInDeletionMode ? "not-allowed" : "pointer",
+                                    minWidth: 110
+                                  }}
+                                />
+                                {task.timerMinutes > 0 && (
+                                  <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                                    {task.completed && task.notificationDueAt
+                                      ? `Finishes at ${new Date(task.notificationDueAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                                      : `Notify after ${formatDuration(task.timerMinutes)}`}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
